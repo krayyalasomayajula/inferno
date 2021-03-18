@@ -1003,7 +1003,7 @@ class Trainer(object):
                     DeviceError)
         self._base_device_ordinal = {None: None, 'cpu': -1, 'cuda': None}.get(base_device)
         # Move model to CUDA
-        if self.model_is_defined:
+        if self.model_is_defined and self.model_device_transfer:
             self.model.cuda()
         # Move criterion to cuda if base device ordinal is not -1 (i.e. CPU)
         # (the criterion is evaluated on the base device)

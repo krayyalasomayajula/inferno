@@ -1,7 +1,6 @@
-import warnings
+import tensorboardX as tX
 import numpy as np
-from torch.utils.tensorboard import SummaryWriter
-
+import warnings
 from .base import Logger
 from ....utils import torch_utils as tu
 from ....utils import python_utils as pyu
@@ -84,7 +83,7 @@ class TensorboardLogger(Logger):
     @property
     def writer(self):
         if self._writer is None:
-            self._writer = SummaryWriter(self.log_directory)
+            self._writer = tX.SummaryWriter(self.log_directory)
         return self._writer
 
     @property

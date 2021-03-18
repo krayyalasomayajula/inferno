@@ -286,3 +286,18 @@ class GarbageCollection(Callback):
 
     def end_of_training_iteration(self, **_):
         gc.collect()
+
+
+class ReduceAdamMomentum(Callback):
+    def __init__(self, iteration_count=None, momentum=None):
+        super(ReduceAdamMomentum, self).__init__()
+        assert_(not (iteration_count is None or momentum is None),
+                "Must provide iteration count and momentum value to set",
+                ValueError)
+        self.iteration_count = iteration_count
+        self.momentum = momentum
+
+    def end_of_training_iteration(self, **_):
+        if self.trainer.iteration_count == self.iteration_count:
+            for group in self.trainer.optimizer.param_groups:
+                group['betas'][0] = self.momentum

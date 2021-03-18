@@ -3,6 +3,7 @@ from ...utils import python_utils as pyu
 from ...utils.exceptions import assert_, NotSetError
 from .base import Callback
 from functools import reduce
+from termcolor import colored
 
 
 class _Scheduler(Callback):
@@ -352,6 +353,45 @@ class DecaySpec(object):
             return args
         else:
             raise NotImplementedError("Can't build DecaySpec from {}.".format(type(args)))
+
+
+class ProgressiveLRDecay(Callback):
+    def __init__(self, decay_specs, exclude_param_groups=None):
+        super(ProgressiveLRDecay, self).__init__()
+        self.decay_specs = decay_specs
+        self.exclude_param_groups = exclude_param_groups
+
+    def match(self):
+        matches_dict = {}  # {'match': [], 'factor': []}
+        if self.trainer.iteration_count > 0:
+            exclude_param_groups = [] if self.exclude_param_groups is None else list(self.exclude_param_groups)
+            for param_group_num, param_group in enumerate(self.trainer.optimizer.param_groups):
+                if param_group_num not in exclude_param_groups:
+                    matches_dict[param_group_num] = [False, None]
+                    for lr_key, lr_spec in self.decay_specs.items():
+                        if (float(lr_spec['lr_limits'][0]) < param_group['lr'] * lr_spec['factor']
+                            <= float(lr_spec['lr_limits'][1])) and \
+                                (self.trainer.iteration_count % lr_spec['intervals']) == 0:
+                            matches_dict[param_group_num] = [True, lr_spec['factor']]
+                            break
+
+        return matches_dict
+
+    def decay(self, param_group_num, factor):
+        param_group = self.trainer.optimizer.param_groups[param_group_num]
+        param_group['lr'] *= factor
+        print(colored(f'Change LR to {param_group["lr"]}.', 'yellow', attrs=['bold']))
+        self.debug_print("Decayed LR of param_group {} from {} --> {}"
+                         .format(param_group_num,
+                                 param_group['lr'] / factor,
+                                 param_group['lr']))
+
+    def end_of_training_iteration(self, **_):
+        matches_dict = self.match()
+        for group_num, (match, global_factor) in matches_dict.items():
+            if match:
+                assert global_factor is not None
+                self.decay(group_num, global_factor)
 
 
 class ManualLR(Callback):
